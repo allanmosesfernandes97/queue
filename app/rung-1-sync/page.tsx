@@ -1,5 +1,5 @@
 'use client'
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Rung1SyncPage() {
 
@@ -15,14 +15,15 @@ export default function Rung1SyncPage() {
         setElapsedTime(0);
 
         try {
-            const res = await fetch('/rung-1-sync/api/resize', {
+            const res = await fetch('/rung-02/api/jobs', {
                 method: "POST",
                 body: formData,
             })
             if (res.ok) {
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                setFileURL(url);
+                // const blob = await res.blob();
+                // const url = URL.createObjectURL(blob);
+                const jobId = await res.json();
+                setFileURL(jobId);
             }
             form.reset();
         } catch (err) {
@@ -51,7 +52,7 @@ export default function Rung1SyncPage() {
             <h2>Elapsed time since upload { elapsedTime } seconds</h2>
             <h2>File Details</h2>
             {isLoading && <span className="loader"></span>}
-            {url && <img src={url} alt='Rendered blob' />}
+            {/* {url && <img src={url} alt='Rendered blob' />} */}
         </div>
     )
 }

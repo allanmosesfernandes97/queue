@@ -3,8 +3,6 @@ import sharp from 'sharp'
 import { sleep } from "@/utils/lib";
 
 export async function POST(request: Request) {
-    console.time('chodu');
-    console.log('Process started')
     const formData = await request.formData();
     const photo = formData.get('photo');
 
@@ -20,8 +18,6 @@ export async function POST(request: Request) {
         .jpeg()
         .toBuffer()
     console.timeEnd('image-processing');
-    console.timeEnd('chodu');
-    console.log('process-ended');
     return new Response(new Uint8Array(outputBytes), {
         headers: {'Content-Type': 'image/jpeg'}
     })
