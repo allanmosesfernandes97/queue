@@ -2,7 +2,7 @@ import { sleep } from '@/utils/lib';
 import sharp from 'sharp';
 
 // queue + worker logic
-type JobState = {
+export type JobState = {
     id: string;
     status: 'pending' | 'processing' | 'done' | 'failed';
     progress: number;
@@ -21,6 +21,12 @@ type GlobalState = {
     __active?: number;
 };
 
+export type Stats = {
+    pending: number;
+    active: number;
+    concurrency: number;
+};
+
 const CONCURRENCY = 2;
 
 // HMR fix
@@ -37,7 +43,7 @@ export function getJob(id: string): JobState | undefined {
     return jobs.get(id);
 }
 
-export function stats() {
+export function stats(): Stats {
     return {
         pending: pendingJobs.length,
         active,
@@ -191,11 +197,30 @@ Write the 5-line body. When you're done, ping me and I'll review — there are a
 function dispatch() {
     while (active < CONCURRENCY && pendingJobs.length > 0) {
         // 1. Take the next job from the front of pending jobs
-
+        const currentJob = pendingJobs.shift()!;
+        // 2. Increment active by 1
+        active++;
+        //3.
+        g.__active = active;
+        imageProcessing(currentJob.id, currentJob.input).finally(() => {
+            active--;
+            g.__active = active;
+            dispatch();
+        });
     }
 }
 
+export function enqueue(id: string, input: Buffer) {
+    const newJob: JobState = {
+        id,
+        status: 'pending',
+        progress: 0,
+    };
 
+    jobs.set(id, newJob);
+    pendingJobs.push({ id, input });
+    dispatch();
+}
 
 // SERVER (Next.js Node process)
 /*
