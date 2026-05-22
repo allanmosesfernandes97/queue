@@ -2,8 +2,9 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
+import { JobState } from '@/lib/store-rung-2';
 // import {
 //     FlowSection,
 //     ClientSection,
@@ -16,6 +17,7 @@ const Scratch = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [jobId, setJobId] = useState<string | null>(null);
+    const [jobStatus, setJobStatus] = useState<JobState | null>(null);
 
     const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -28,11 +30,22 @@ const Scratch = () => {
         });
         if (!res.ok) return;
         const data = await res.json();
+        const { jobId } = data;
         // if (data.status === 'success' && data.responseDataUrl) setImageUrl(data.responseDataUrl);
+        setJobId(jobId);
         setLoading(false);
         form.reset();
     };
 
+    useEffect(() => {
+        if (!jobId) return;
+        const poll = async () => {
+            const res = await fetch(`/scratch-02/api/resize/${jobId}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            setJobStatus(data);
+        }
+    }, [jobId, jobStatus?.id])
     return (
         <main className="mx-auto max-w-3xl space-y-6 p-6">
             <header className="space-y-1">
