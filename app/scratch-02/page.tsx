@@ -15,7 +15,6 @@ import { JobState } from '@/lib/store-rung-2';
 
 const Scratch = () => {
     const [loading, setLoading] = useState<boolean>(false);
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [jobId, setJobId] = useState<string | null>(null);
     const [jobStatus, setJobStatus] = useState<JobState | null>(null);
 
@@ -23,6 +22,14 @@ const Scratch = () => {
         e.preventDefault();
         const form = e.currentTarget;
         const formData = new FormData(form);
+        const job = formData.get('jobId');
+        if (job && typeof job === 'string') {
+            const res = await fetch(`/scratch-02/api/resize/${job}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            setJobStatus(data);
+            return;
+        }
         setLoading(true);
         const res = await fetch('/scratch-02/api/resize', {
             method: 'POST',
@@ -39,13 +46,18 @@ const Scratch = () => {
 
     useEffect(() => {
         if (!jobId) return;
+        if (jobStatus?.status === 'done' || jobStatus?.status === 'failed') return;
         const poll = async () => {
             const res = await fetch(`/scratch-02/api/resize/${jobId}`);
             if (!res.ok) return;
             const data = await res.json();
             setJobStatus(data);
-        }
-    }, [jobId, jobStatus?.id])
+        };
+        // poll();
+        const interval = setInterval(() => poll(), 1000);
+        return () => clearInterval(interval);
+    }, [jobId, jobStatus?.status]);
+
     return (
         <main className="mx-auto max-w-3xl space-y-6 p-6">
             <header className="space-y-1">
@@ -86,12 +98,21 @@ const Scratch = () => {
 
                         <Field htmlFor="image" label="Image">
                             <input
-                                required
+                                // required
                                 id="image"
                                 name="image"
                                 type="file"
                                 accept="image/*"
                                 className="block w-full rounded-md border border-input bg-background text-sm text-muted-foreground file:mr-3 file:border-0 file:border-r file:border-input file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted/70"
+                            />
+                        </Field>
+                        <Field htmlFor="jobId" label="Post Job id">
+                            <input
+                                id="jobId"
+                                name="jobId"
+                                type="text"
+                                placeholder="Enter job id"
+                                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                             />
                         </Field>
                         <div className="flex justify-end pt-1">
@@ -107,7 +128,11 @@ const Scratch = () => {
                             </Button>
                         </div>
                     </form>
-                    <div>{imageUrl && <img src={imageUrl} alt="Upload" />}</div>
+                    <div>
+                        {jobStatus?.status === 'done' && (
+                            <img src={jobStatus?.resultDataUrl} alt="Upload" />
+                        )}
+                    </div>
                 </CardContent>
             </Card>
 

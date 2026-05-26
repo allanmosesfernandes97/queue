@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 const imageProcessing = async (id: string, imageBuffer: Buffer) => {
     try {
         // Fake progress
-        for (let p = 10; p < 90; p + 10) {
+        for (let p = 10; p < 90; p += 10) {
             await sleep(800);
             updateProgress(id, p);
         }
@@ -35,6 +35,9 @@ const imageProcessing = async (id: string, imageBuffer: Buffer) => {
         const resultDataUrl: string = `data:image/jpeg;base64,${sharpImage.toString('base64')}`;
         setDone(id, resultDataUrl);
     } catch (error) {
-        setFailed(id, error instanceof Error && error.message ? error.message : 'Something went wrong')
+        setFailed(
+            id,
+            error instanceof Error && error.message ? error.message : 'Something went wrong'
+        );
     }
 };
