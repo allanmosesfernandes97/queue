@@ -90,7 +90,6 @@ async function imageProcessing(id: string, inputBytes: Buffer) {
 
         // Encode to dataURL
         const resultDataUrl = `data:image/jpeg;base64,${outputBytes.toString('base64')}`;
-
         // Dispatch
         markDone(id, resultDataUrl);
     } catch (err) {
@@ -191,8 +190,8 @@ If you're stuck on Step 5's method name: think about what comes after try/catch.
 
 Try writing it now
 Write the 5-line body. When you're done, ping me and I'll review — there are a few subtle things to double-check (the !, the order of operations, the method name). Don't peek at code online — the lesson is in writing this 7-line dispatcher by hand. Once you've written one, you'll see it everywhere in production systems.
- * 
- * 
+ *
+ *
  */
 function dispatch() {
     while (active < CONCURRENCY && pendingJobs.length > 0) {

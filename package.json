@@ -6,7 +6,8 @@
     "dev": "next dev -p 3009",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "worker": "tsx --env-file=.env.local workers/rung-4-worker.ts"
   },
   "dependencies": {
     "bullmq": "^5.76.8",

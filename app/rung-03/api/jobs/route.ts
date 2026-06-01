@@ -1,4 +1,4 @@
-import { enqueue } from "@/lib/queue-rung-3";
+import { enqueue } from '@/lib/queue-rung-3';
 import { randomUUID } from 'node:crypto';
 export const runtime = 'nodejs';
 
@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const photo = formData.get('photo');
     if (!(photo instanceof File) || photo.size === 0) {
-        return Response.json({ error: 'Invalid request' }, {status: 400})
+        return Response.json({ error: 'Invalid request' }, { status: 400 });
     }
 
     // Generate a UUID

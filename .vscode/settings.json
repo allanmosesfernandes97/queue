@@ -4,7 +4,5 @@
         "statusBar.noFolderBackground": "#540754",
         "statusBar.noFolderForeground": "#FFF9FF"
     },
-    "cSpell.words": [
-        "jobstore"
-    ]
+    "cSpell.words": ["jobstore"]
 }

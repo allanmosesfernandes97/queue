@@ -4,19 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
-import { JobState } from '@/lib/store-rung-2';
-// import {
-//     FlowSection,
-//     ClientSection,
-//     ServerSection,
-//     ByteJourneySection,
-//     SixLayersSection,
-// } from '@/scratch-01/_education';
+import type { JobStatus } from '@/lib/scratch-rung-3';
 
 const Scratch = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [jobId, setJobId] = useState<string | null>(null);
-    const [jobStatus, setJobStatus] = useState<JobState | null>(null);
+    const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
 
     const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -24,14 +17,14 @@ const Scratch = () => {
         const formData = new FormData(form);
         const job = formData.get('jobId');
         if (job && typeof job === 'string') {
-            const res = await fetch(`/scratch-02/api/resize/${job}`);
+            const res = await fetch(`/scratch-03/api/resize/${job}`);
             if (!res.ok) return;
             const data = await res.json();
-            setJobStatus(data);
+            setJobStatus(data.job);
             return;
         }
         setLoading(true);
-        const res = await fetch('/scratch-02/api/resize', {
+        const res = await fetch('/scratch-03/api/resize', {
             method: 'POST',
             body: formData,
         });
@@ -48,10 +41,10 @@ const Scratch = () => {
         if (!jobId) return;
         if (jobStatus?.status === 'done' || jobStatus?.status === 'failed') return;
         const poll = async () => {
-            const res = await fetch(`/scratch-02/api/resize/${jobId}`);
+            const res = await fetch(`/scratch-03/api/resize/${jobId}`);
             if (!res.ok) return;
             const data = await res.json();
-            setJobStatus(data);
+            setJobStatus(data.job);
         };
         // poll();
         const interval = setInterval(() => poll(), 1000);
@@ -65,13 +58,13 @@ const Scratch = () => {
                     <span className="size-1.5 rounded-full bg-emerald-500"></span>
                     scratch-03
                 </div>
-                <h1>Producer Consumer Pattern</h1>
+                <h1>Asynchronous request/response</h1>
                 <button onClick={() => alert('Hello')}>TEST</button>
                 <p className="text-muted-foreground">
                     Client posts a form, we return receipt with job id, then keep pooling the Job ID
                 </p>
             </header>
-            {/* 
+            {/*
             <FlowSection />
             <ClientSection />
             <ServerSection /> */}
@@ -130,7 +123,7 @@ const Scratch = () => {
                     </form>
                     <div>
                         {jobStatus?.status === 'done' && (
-                            <img src={jobStatus?.resultDataUrl} alt="Upload" />
+                            <img src={jobStatus?.resultsDataUrl} alt="Upload" />
                         )}
                     </div>
                 </CardContent>

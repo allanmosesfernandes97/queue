@@ -39,6 +39,7 @@ Next.js dev mode reloads modules on file change. If you store the queue in a mod
 
 ## Make concurrency configurable
 
+
 Read `RUNG3_CONCURRENCY` from `process.env`, default 2. The point is that concurrency is now a **knob** instead of a side effect of however many parallel requests happen to come in.
 
 ## Verify the lesson lands
