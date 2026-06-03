@@ -67,46 +67,25 @@ exhausted — not a separate queue.)
 </details>
 
 <details>
-<summary>The file (build it yourself first)</summary>
+<summary>Build checklist (write the file yourself — no solution here)</summary>
 
-```ts
-import { queueScratch04 } from '@/lib/queue-scratch-04';
-import { randomUUID } from 'node:crypto';
+Your `app/scratch-04/api/route.ts` must:
+- [ ] export an `async function POST(req: Request)`
+- [ ] read the multipart body and pull out the `image` field and the `fileName` field
+- [ ] **validate**: `image` is a real `File` with size > 0, `fileName` is a non-empty string → otherwise return `400`
+- [ ] turn the file into a `Buffer`, then into a base64 string (the lesson shortcut)
+- [ ] generate your own `jobId`
+- [ ] `add()` the job to `queueScratch04` with data `{ fileName, base64 }` and opts: `jobId`, `attempts`, `backoff` (exponential), `removeOnComplete`, `removeOnFail`
+- [ ] return the `jobId` as JSON with status **202**
 
-export async function POST(req: Request) {
-    // Producer: validate, encode, enqueue, return a receipt.
-    const formData = await req.formData();
-    const imageFile = formData.get('image');
-    const fileName = formData.get('fileName');
+APIs to look up (practise reading the docs — don't memorise):
+- `Request.formData()`, `File.arrayBuffer()`, `Buffer.from(...).toString('base64')`
+- `randomUUID` from `node:crypto`
+- BullMQ `queue.add(name, data, opts)` — check the exact shape of `backoff`, `removeOnComplete`, `removeOnFail`
 
-    if (
-        !(imageFile instanceof File) ||
-        imageFile.size === 0 ||
-        typeof fileName !== 'string' ||
-        fileName.length === 0
-    ) {
-        return Response.json({ message: 'Invalid request' }, { status: 400 });
-    }
-
-    const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
-    const base64 = imageBuffer.toString('base64'); // lesson shortcut; prod = blob key
-    const jobId = randomUUID(); // our receipt → dedup + predictable polling
-
-    await queueScratch04.add(
-        'resize',
-        { fileName, base64 },
-        {
-            jobId,
-            attempts: 3,                                   // retry up to 3x (worker does it)
-            backoff: { type: 'exponential', delay: 1000 }, // 1s, then ~2s between tries
-            removeOnComplete: { age: 3600, count: 100 },   // housekeep: Redis is RAM
-            removeOnFail: { age: 86400 },                  // keep failures longer = DLQ for humans
-        }
-    );
-
-    // 202 Accepted: queued, not done. Client polls with jobId.
-    return Response.json({ jobId }, { status: 202 });
-}
-```
+Verify when done:
+- POSTing the form returns `202` + a `jobId`
+- the job appears in the worker terminal / the dashboard's `waiting`→`active` counts
+- submitting twice with the *same* `jobId` does **not** create a second job (dedup)
 
 </details>

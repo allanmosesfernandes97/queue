@@ -14,7 +14,10 @@ Work the checkpoints **in order** (`01` → `08`). Each file has:
    blocks. Don't peek first.
 3. **Model answer** — a collapsed `<details>` block. Open it only after you've
    written yours, then self-grade: where were you fuzzy? That fuzz is the lesson.
-4. **The file** — the model code, also collapsed. Type your own version first.
+4. **Build checklist** — *not* a ready-made file. What the file must do, which
+   APIs to look up, and how to verify it. **You write the code yourself.**
+   (Checkpoints 02–03 show the committed files only because we built those
+   together already; everything from 04 on is yours to write.)
 
 Progress so far (done together on the original machine):
 

@@ -61,98 +61,34 @@ can't keep up — add processes / concurrency).
 </details>
 
 <details>
-<summary>The files (build them yourself first)</summary>
+<summary>Build checklist (write them yourself — no solution here)</summary>
 
-`app/scratch-04/api/stats/route.ts`:
+`app/scratch-04/api/stats/route.ts` must:
+- [ ] export `async function GET()`
+- [ ] call `getJobCounts(...)` on `queueScratch04` for `waiting`, `active`, `completed`, `failed`, `delayed`
+- [ ] return the counts as JSON
 
-```ts
-import { queueScratch04 } from '@/lib/queue-scratch-04';
+`app/scratch-04/page.tsx` must:
+- [ ] be a client component (`'use client'`)
+- [ ] hold state for: the current `jobId`, the latest `JobResponse`, and the counts
+- [ ] on submit: POST the `FormData` to your producer route, read back the `jobId`, reset any old job state
+- [ ] **poll the job** in a `useEffect`: tick immediately + every ~1s; **stop** when the job is terminal (`completed`/`failed`/error); clean up the interval on unmount
+- [ ] handle a `404` from the status route *without* wiping the last good state (the housekeeping trap)
+- [ ] **poll the counts** in a separate `useEffect` (independent of any single job)
+- [ ] render: the form, a counts readout, a `<progress>` bar while running, an error message on `failed`, the result `<img>` on `completed`
 
-export async function GET() {
-    const counts = await queueScratch04.getJobCounts(
-        'waiting',
-        'active',
-        'completed',
-        'failed',
-        'delayed'
-    );
-    return Response.json(counts);
-}
-```
+APIs / things to look up:
+- React `useState` / `useEffect`, `setInterval` + cleanup, the correct form-event type (the old rung-04 used `React.SubmitEvent`, which isn't a real React type — find the right one)
+- `fetch` with `FormData` body; `URLSearchParams`/path interpolation for the job id
 
-`app/scratch-04/page.tsx`:
+Gotchas to get right (these are the lesson):
+- **What's in your effect's dependency array?** Getting this wrong causes either no polling or a runaway loop.
+- **When exactly do you tear down the interval?** (terminal state *and* unmount)
+- **Why poll counts separately from the job?** (counts are queue-wide, not tied to your one job)
 
-```tsx
-'use client';
-
-import { JobResponse } from '@/lib/scratch-04-types';
-import { useEffect, useState } from 'react';
-
-type Counts = Record<string, number>;
-
-export default function Scratch04() {
-    const [jobId, setJobId] = useState<string | null>(null);
-    const [job, setJob] = useState<JobResponse | null>(null);
-    const [counts, setCounts] = useState<Counts>({});
-
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const res = await fetch('/scratch-04/api', { method: 'POST', body: new FormData(e.currentTarget) });
-        if (!res.ok) return;
-        const { jobId } = await res.json();
-        setJob(null);
-        setJobId(jobId);
-    };
-
-    // Poll one job until it reaches a terminal state.
-    useEffect(() => {
-        if (!jobId) return;
-        if (job?.state === 'completed' || job?.state === 'failed' || job?.error) return;
-        const tick = async () => {
-            const res = await fetch(`/scratch-04/api/job/${jobId}`);
-            if (!res.ok) return; // 404 after housekeeping — keep last good state
-            setJob(await res.json());
-        };
-        tick();
-        const id = setInterval(tick, 1000);
-        return () => clearInterval(id);
-    }, [jobId, job?.state]);
-
-    // Poll live queue counts independent of any single job.
-    useEffect(() => {
-        const tick = async () => {
-            const res = await fetch('/scratch-04/api/stats');
-            if (res.ok) setCounts(await res.json());
-        };
-        tick();
-        const id = setInterval(tick, 1000);
-        return () => clearInterval(id);
-    }, []);
-
-    return (
-        <section>
-            <h2>Scratch 04 — Redis + BullMQ</h2>
-            <form onSubmit={handleSubmit}>
-                <input type="text" placeholder="Enter file name" name="fileName" />
-                <input type="file" accept="image/*" name="image" />
-                <button type="submit">SUBMIT</button>
-            </form>
-
-            <pre>
-                waiting:{counts.waiting ?? 0}  active:{counts.active ?? 0}  completed:
-                {counts.completed ?? 0}  failed:{counts.failed ?? 0}  delayed:{counts.delayed ?? 0}
-            </pre>
-
-            {jobId && job?.state !== 'completed' && job?.state !== 'failed' && (
-                <progress max="100" value={job?.progress ?? 0}>
-                    {job?.progress ?? 0}%
-                </progress>
-            )}
-            {job?.state === 'failed' && <p>Failed: {job.error}</p>}
-            {job?.state === 'completed' && job.result && <img src={job.result} alt="Resized" />}
-        </section>
-    );
-}
-```
+Verify when done:
+- submit → progress bar climbs → result image appears; polling stops after completion (check the Network tab — no more requests)
+- the counts readout moves as you submit/process jobs
+- a failed job shows the error, doesn't spin forever
 
 </details>

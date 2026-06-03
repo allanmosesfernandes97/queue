@@ -67,47 +67,26 @@ and/or keep `removeOnComplete.count` high enough to outlast polling.
 </details>
 
 <details>
-<summary>The files (build them yourself first)</summary>
+<summary>Build checklist (write them yourself — no solution here)</summary>
 
-`lib/scratch-04-types.ts`:
+`lib/scratch-04-types.ts` must:
+- [ ] export a `JobResponse` type with: `id?`, `state` (BullMQ's `JobState` plus an `'unknown'` fallback), `progress` (number), `result?` (the data URL), `error?` (the failed reason), `attemptsMade?`
+- [ ] import the `JobState` type from `bullmq` (note: it's a *type-only* import)
 
-```ts
-import type { JobState } from 'bullmq';
+`app/scratch-04/api/job/[id]/route.ts` must:
+- [ ] export `async function GET(req, { params })` — in this Next version `params` is a `Promise`, so you must `await` it to get `id`
+- [ ] look the job up by id via the `queueScratch04` admin handle
+- [ ] return `404` if no job comes back (remember the two reasons that happens)
+- [ ] read the job's current state, progress, return value, failed reason, attempts
+- [ ] return them as a `JobResponse` JSON
 
-export type JobResponse = {
-    id?: string;
-    state: JobState | 'unknown';
-    progress: number;
-    result?: string;       // data URL, set after success
-    error?: string;        // failedReason, set after final failure
-    attemptsMade?: number; // how many times the worker has run it
-};
-```
+APIs to look up:
+- BullMQ: `queue.getJob(id)`, `job.getState()`, and the job fields `progress` / `returnvalue` / `failedReason` / `attemptsMade`
+- Next.js route handler signature for a dynamic `[id]` segment in this version (check `node_modules/next/dist/docs/` per AGENTS.md — `params` may be async)
 
-`app/scratch-04/api/job/[id]/route.ts`:
-
-```ts
-import { queueScratch04 } from '@/lib/queue-scratch-04';
-import { JobResponse } from '@/lib/scratch-04-types';
-
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params;
-    const job = await queueScratch04.getJob(id);
-    if (!job) {
-        // Either never existed, or completed/failed and already housekept away.
-        return Response.json({ error: 'Not found' }, { status: 404 });
-    }
-    const state = await job.getState(); // = which Redis list/set the job is in
-    const body: JobResponse = {
-        id: job.id,
-        state,
-        progress: typeof job.progress === 'number' ? job.progress : 0,
-        result: job.returnvalue,       // written by the worker on return
-        error: job.failedReason,       // written by the worker on final throw
-        attemptsMade: job.attemptsMade,
-    };
-    return Response.json(body);
-}
-```
+Verify when done:
+- polling a live job shows `progress` climbing and `state` moving `waiting`→`active`→`completed`
+- a bad/unknown id returns `404`
+- after a job is housekept away (`removeOnComplete`), the same id starts returning `404` — confirm your page handles that gracefully (checkpoint 07)
 
 </details>

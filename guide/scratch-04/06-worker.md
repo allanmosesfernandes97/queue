@@ -98,71 +98,28 @@ for inspection.
 </details>
 
 <details>
-<summary>The file (build it yourself first)</summary>
+<summary>Build checklist (write it yourself — no solution here)</summary>
 
-```ts
-import { Worker, type Job } from 'bullmq';
-import { redisScratch04 } from '@/lib/redis-scratch-04';
-import type { ResizeJobData } from '@/lib/queue-scratch-04';
-import sharp from 'sharp';
-import { sleep } from '@/utils/lib';
+`workers/scratch-4-worker.ts` must:
+- [ ] construct a `new Worker(name, processor, opts)` where **name exactly matches** the queue name (`'scratch-4-resize'`)
+- [ ] pass `connection: redisScratch04`, `concurrency` (from env, default 3), and a `limiter` `{ max, duration }` (max from env, duration 1000)
+- [ ] read `FAIL_RATE` from env once at the top
+- [ ] write the processor: guard against missing `job.data`; loop reporting progress with `job.updateProgress(p)` and a small `sleep`; optionally throw based on `FAIL_RATE` to exercise retries; resize with `sharp`; **return** the result data URL
+- [ ] attach event listeners (`ready`, `active`, `completed`, `failed`) that `console.log` so you can watch from the worker terminal
+- [ ] handle `SIGINT`/`SIGTERM` by calling `worker.close()` (graceful shutdown)
 
-const FAIL_RATE = Number(process.env.FAIL_RATE ?? 0); // 0..1
+APIs to look up:
+- BullMQ `Worker` constructor + options (`concurrency`, `limiter`), `job.updateProgress`, `job.attemptsMade`, `worker.on(...)`, `worker.close()`
+- `sharp(buffer).resize(...).png().toBuffer()`
+- `sleep` from `@/utils/lib`; `process.on('SIGTERM', ...)`
 
-// Worker = the CONSUMER. Name MUST match the Queue's name exactly (the dead drop).
-const worker = new Worker<ResizeJobData>('scratch-4-resize', imageProcessing, {
-    connection: redisScratch04,
-    concurrency: Number(process.env.SCRATCH04_CONCURRENCY ?? 3),
-    limiter: {
-        max: Number(process.env.SCRATCH04_RATE_PER_SEC ?? 5), // cap starts per window
-        duration: 1000,                                       // window = 1 second
-    },
-});
+Design choices to make (and be able to defend):
+- **Failure injection:** `Math.random() < FAIL_RATE` (simple) vs. a deterministic hash of `job.id` (a given job fails predictably — easier to reason about retries). Pick one, know why.
+- **Where does the throw go in the processor?** Before or after the resize? (Think about what you're trying to simulate — a failing API call vs. a corrupt file.)
 
-async function imageProcessing(job: Job<ResizeJobData>) {
-    if (!job.data.base64 || !job.data.fileName) throw new Error('Missing job data');
-
-    // Fake work + progress so you can watch it stream to the browser.
-    for (let p = 10; p <= 90; p += 10) {
-        await sleep(900);
-        await job.updateProgress(p); // → writes p into Redis; page reads it via polling
-    }
-
-    // Injected failure to exercise retries / backoff / DLQ.
-    if (FAIL_RATE > 0 && hashToUnit(job.id ?? '') < FAIL_RATE) {
-        throw new Error(`Injected failure (FAIL_RATE=${FAIL_RATE})`);
-    }
-
-    const resized = await sharp(Buffer.from(job.data.base64, 'base64'))
-        .resize(1024, 1024, { fit: 'contain' })
-        .png()
-        .toBuffer();
-
-    // Returned value is serialized into job.returnvalue in Redis.
-    return `data:image/png;base64,${resized.toString('base64')}`;
-}
-
-// Deterministic 0..1 from the job id (avoids Math.random; same job fails same way per attempt set).
-function hashToUnit(s: string) {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return (h % 1000) / 1000;
-}
-
-// Observability: watch the work happen in the worker terminal.
-worker.on('ready', () => console.log('worker ready'));
-worker.on('active', (job) => console.log('▶ active', job.id, 'attempt', job.attemptsMade + 1));
-worker.on('completed', (job) => console.log('✓ done', job.id));
-worker.on('failed', (job, err) => console.log('✗ failed', job?.id, 'attempt', job?.attemptsMade, err?.message));
-
-// Graceful shutdown: let in-flight jobs finish instead of abandoning them.
-process.on('SIGINT', () => worker.close());
-process.on('SIGTERM', () => worker.close());
-```
-
-> Note: the reference rung-04 used `Math.random()` for failure injection. Either
-> is fine for the lesson; the id-hash version above is deterministic so a given
-> job fails predictably, which makes the retry/DLQ scenarios easier to reason
-> about. Use whichever you understand better — just be able to explain it.
+Verify when done:
+- run `pnpm worker:scratch-04`; submit a job; watch progress logs then `✓ done`
+- set `FAIL_RATE=1`; watch attempts climb then the job land in `failed` (DLQ)
+- `Ctrl-C` mid-job: the active job finishes before the process exits (graceful)
 
 </details>
